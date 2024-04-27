@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSQS:基于微表情检测的课堂质量打分系统</title>
+</head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        /* background-image: url(../img/bg.jpg); */
+        /* background-size: cover; */
+        background-color: #f9f9f9a2;
+        color: #409EFF;
+    }
+
+    .glass-container {
+        color: #409EFF;
+        gap: 20px;
+        border-radius: 10px;
+        backdrop-filter: blur(3px);
+        background-color: rgba(0, 191, 255, 0);
+        box-shadow: rgba(0, 0, 0, 0.3) 2px 8px 8px;
+        border: 1px rgba(255, 255, 255, 0.4) solid;
+        border-bottom: 1px rgba(40, 40, 40, 0.35) solid;
+        border-right: 1px rgba(40, 40, 40, 0.35) solid;
+    }
+</style>
+
+<body>
+    <div id="home" style="">
+        <div style="color: white;display: flex;justify-content: space-between;
+        align-items: center;background-color: #66b0ffc0;padding: 10px;">
+            <!-- 时间 -->
+            <div style="font-size: 23px;">{{dateTime}}</div>
+            <!-- 课程名称 -->
+            <!-- <div style="font-size: 24px;cursor: pointer;" @click="courses">{{CourseName}}</div> -->
+            <!-- 标题 -->
+            <div class="text" style="font-size: 24px;font-weight: 600;flex: 1;text-align: center;margin-left: 100px;">
+                MSQS:基于微表情检测的课堂质量打分系统
+            </div>
+            <!-- 结束 -->
+            <div style="margin-right: 100px;">
+                <el-button v-if="btnFlag" type="primary" size="small" plain @click="startVideo">开始检测</el-button>
+                <el-button v-if="!btnFlag" type="danger" size="small" plain @click="stopVideo">结束检测</el-button>
+            </div>
+            <!-- 用户名 -->
+            <div style="font-size: 15px;">你好！
+                <el-dropdown style="color: white;cursor: pointer;" @command="userModel">
+                    <span class="el-dropdown-link" style="font-size: 20px;">
+                        {{userInfo.name}}<i class="el-icon-arrow-down el-icon--right"></i>
+                    </span>
+                    <el-dropdown-menu slot="dropdown">
+                        <!-- <el-dropdown-item command="data">数据中心</el-dropdown-item>
+                        <el-dropdown-item command="userInfo">个人中心</el-dropdown-item> -->
+                        <el-dropdown-item command="outSystem">退出系统</el-dropdown-item>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </div>
+        <div style="display: flex;justify-content: space-between;margin-top: 10px;padding: 10px;">
+            <div style="flex: 1;color: white;padding-right: 10px;">
+                <div class="glass-container" style="text-align: center;">
+                    <span style="display: block;font-size: 18px;">课程质量评分
+                        <el-tooltip content="依据模型对不同质量的教学视频进行KL散度拟合当前检测数据而计算得出" placement="bottom">
+                            <i class="el-icon-info"></i>
+                        </el-tooltip>
+                    </span>
+                    <span v-if="Scoring>=80" style="display: block;font-size: 40px;">{{Scoring}}</span>
+                    <span v-if="Scoring<=80 && Scoring>=60"
+                        style="display: block;font-size: 40px;color:#ffb443 ;">{{Scoring}}</span>
+                    <span v-if="Scoring<60" style="display: block;font-size: 40px;color:#ea4949 ;">{{Scoring}}</span>
+                </div>
+                <div class="glass-container" style="text-align: center;margin-top: 20px;">
+                    <p>学生微表情变化</p>
+                    <div id="LineChart" style="width: 100%;height: 300px;"></div>
+                </div>
+                <div class="glass-container" style="margin-top: 20px;text-align: center;">
+                    <p>学生微表情占比</p>
+                    <div id="perChart" style="width: 100%;height: 300px;"></div>
+                </div>
+            </div>
+            <div style="flex: 1;position: relative;">
+                <!-- <p style="color: #04b5bb;margin-top: 10px;margin-bottom: 10px;">
+                    实时视频监测
+                </p> -->
+                <div>
+                    <video id="videoElement" :src="videoUrl" autoplay style="width:100%;height: 420px;background-color: #000000;
+                    object-fit: fill;color: white;border-radius: 10px;">
+                    </video>
+                    <!-- <video id="my-video" controls preload="auto" 
+                    style="width:100%;height: 420px;background-color: #000000;
+                    object-fit: fill;color: white;border-radius: 10px;">
+                        <source src="1" type='video/flv'>
+                    </video> -->
+
+                    <!-- <video id="videoElement" autoplay style="width:100%;height: 420px;background-color: #000000;
+                    object-fit: fill;color: white;border-radius: 10px;" class="video-js" controls>
+                        <source src="" type='video/flv'>
+                    </video> -->
+
+                    <!-- <canvas id="video-canvas" style="width:100%;height: 420px;background-color: #000000;
+                    object-fit: fill;color: white;border-radius: 10px;"></canvas> -->
+                    <span v-if="btnFlag" style="color: white;position: absolute;left:40%;top: 25%;">
+                        请点击检测按钮</span>
+                    <video id="videoTest" style="display: none;">
+                    </video>
+                </div>
+                <div class="glass-container" style="margin-top: 20px;text-align: center;">
+                    <p>学生注意力曲线</p>
+                    <div id="LineChart2" style="width: 100%;height: 300px;"></div>
+                </div>
+
+            </div>
+            <div style="flex: 1;color: white;padding-left: 10px;">
+                <div class="glass-container" style="text-align: center;">
+                    <span style="display: block;font-size: 18px;">课程名称</span>
+                    <el-select v-model="CourseName" placeholder="请选择" @change="couresSelect"
+                        style="margin-top: 10px;margin-bottom: 10px;">
+                        <el-option v-for="item in options" :key="item.id" :label="item.className" :value="item.className">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="glass-container" style="margin-top: 20px;text-align: center;">
+                    <p>课程KL散度拟合</p>
+                    <div id="barChart" style="width: 100%;height: 300px;"></div>
+                </div>
+                <div class="glass-container" style="margin-top: 20px;text-align: center;">
+                    <p>学生异常截图</p>
+                    <div style="width: 100%;height: 300px;">
+                        <el-carousel :interval="5000" arrow="always">
+                            <el-carousel-item v-for="item in studentAbnormal" :key="item.id">
+                                <el-image style="width: 100%;height: 280px;border-radius: 10px;margin-top: 20px;"
+                                    :src="item.url" fit="fill"></el-image>
+                            </el-carousel-item>
+                        </el-carousel>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script src="../js/vue.js"></script>
+<script src="../element-ui/lib/index.js"></script>
+<link rel="stylesheet" href="../element-ui/lib/theme-chalk/index.css">
+<script src="../js/axios-0.18.0.js"></script>
+<script src="../js/echarts.min.js"></script>
+<!-- <script src="../js/build.js"></script> -->
+<link href="https://cdn.bootcdn.net/ajax/libs/video.js/8.5.3/alt/video-js-cdn.css" rel="stylesheet">
+<!--引入播放器js-->
+<script src="https://cdn.bootcdn.net/ajax/libs/video.js/8.5.3/video.js"></script>
+        <!-- <script src="https://cdn.jsdelivr.net/npm/videojs-flash@2/dist/videojs-flash.min.js"></script> -->
+
+
+<script>
+    new Vue({
+        el: "#home",
+        mounted() {
+            // videojs.options.flash.swf = 'https://cdn.bootcss.com/videojs-swf/5.4.1/video-js.swf';
+            //加载
+            const loading = this.$loading({
+                lock: true,
+                text: 'Loading',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
+            this.userInfo=JSON.parse(localStorage.getItem("userInfo"));
+            this.courses();
+            //时候获取时间
+            // this.getCurrentDateTime;
+            setInterval(this.getCurrentDateTime, 1000);
+            var data = [{
+                name: '生气',
+                type: 'line',
+                data: [120, 132, 101, 134, 90,]
+            },
+            {
+                name: '厌恶',
+                type: 'line',
+                data: [220, 182, 191, 234, 290]
+            },
+            {
+                name: '恐惧',
+                type: 'line',
+                data: [220, 182, 191, 234, 290]
+            },
+            {
+                name: '开心',
+                type: 'line',
+                data: [150, 232, 201, 154, 190]
+            },
+            {
+                name: '伤心',
+                type: 'line',
+                data: [50, 232, 201, 154, 190]
+            },
+            {
+                name: '惊讶',
+                type: 'line',
+                data: [75, 132, 181, 234, 190]
+            },
+            {
+                name: '无异常',
+                type: 'line',
+                data: [232, 234, 120, 132, 190]
+            }]
+            this.SetLineChart(data);
+            var data1 = [{
+                name: '1',
+                type: 'line',
+                data: [120, 132, 101, 134, 90,]
+            }]
+            this.SetLineChart2(data1);
+            var per = [
+                { value: 40, name: '生气' },
+                { value: 33, name: '厌恶' },
+                { value: 28, name: '恐惧' },
+                { value: 22, name: '开心' },
+                { value: 20, name: '伤心' },
+                { value: 15, name: '惊讶' },
+                { value: 12, name: '无异常' }
+            ]
+            this.SetPerChart(per)
+            var time = ['生气', '厌恶', '恐惧', '开心', '伤心', '惊讶', '无异常'];
+            var bar = [10, 52, 200, 334, 390, 330, 220];
+            this.SetBarChart(time, bar)
+            //结束加载
+            setTimeout(() => {
+                loading.close();
+            }, 2000);
+
+        },
+        data() {
+            return {
+                dialogTableVisible: false,
+                btnFlag: true,
+                CourseName: "测试课程",
+                userInfo: {
+                    id: "",
+                    name: "测试用户"
+                },
+                dateTime: "",
+                //视频
+                constraints: { video: true, audio: false },
+                videoUrl: null,
+                options: [
+                    {
+                        id: 1,
+                        label: "测试课程",
+                    }, {
+                        id: 2,
+                        label: "测试课程2",
+                    }
+                ],
+                Scoring: 0,//打分
+                state: '正常',//模型状态
+                studentAbnormal: [
+                    {
+                        id: 1,
+                        url: "https://fuss10.elemecdn.com/e/5d/4a731a90594a4af544c0c25941171jpeg.jpeg",
+                    }, {
+                        id: 2,
+                        url: "https://img-blog.csdnimg.cn/img_convert/b9fc00161a26e8a61e1f041db634d97a.jpeg",
+                    }, {
+                        id: 3,
+                        url: "1",
+                    }, {
+                        id: 4,
+                        url: "2",
+                    }
+                ],//异常图
+                scocket: null,
+                stream: null,
+            }
+        },
+        methods: {
+            // 用户操作
+            userModel(obj) {
+                // console.log(obj)
+                switch (obj) {
+                    case 'data':
+                        window.location.href = "./data.html";
+                        break;
+                    case 'userInfo':
+                        window.location.href = "./userInfo.html";
+                        break;
+                    case 'outSystem':
+                        localStorage.clear()
+                        localStorage.setItem("userInfo","aaaa");
+                        window.location.href = "../index.html";
+                        break;
+                }
+            },
+            //获取当前时间
+            getCurrentDateTime() {
+                var now = new Date();
+                var year = now.getFullYear();
+                var month = now.getMonth() + 1;
+                var day = now.getDate();
+                var hours = now.getHours();
+                var minutes = now.getMinutes();
+                var seconds = now.getSeconds();
+                month = month <= 9 ? "0" + month : month;
+                day = day <= 9 ? "0" + day : day;
+                hours = hours <= 9 ? "0" + hours : hours;
+                minutes = minutes <= 9 ? "0" + minutes : minutes;
+                seconds = seconds <= 9 ? "0" + seconds : seconds;
+                this.dateTime = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
+            },
+            //微表情变化曲线
+            SetLineChart(data) {
+                var lineChart = echarts.init(document.getElementById('LineChart'));
+                let dataXTime = [
+                    '2023-12-04', '2023-12-05', '2023-12-06', '2023-12-07', '2023-12-08']
+                let option = {
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    // 网格间距设置
+                    grid: {
+                        top: '10px',
+                        left: '30px',
+                        right: '40px',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        boundaryGap: false,
+                        data: dataXTime,
+                    },
+                    yAxis: {
+                        type: 'value'
+                    },
+                    // 数据
+                    series: data
+                };
+                lineChart.setOption(option);
+            },
+            //注意力
+            SetLineChart2(data) {
+                var lineChart = echarts.init(document.getElementById('LineChart2'));
+                let dataXTime = [
+                    '09:00', '09:10', '09:20', '09:30', '09:40']
+                let option = {
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    // 网格间距设置
+                    grid: {
+                        top: '10px',
+                        left: '30px',
+                        right: '30px',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        boundaryGap: false,
+                        data: dataXTime,
+                    },
+                    yAxis: {
+                        type: 'value'
+                    },
+                    // 数据
+                    series: data
+                };
+                lineChart.setOption(option);
+            },
+            //微表情评分
+            SetPerChart(data) {
+                var perChart = echarts.init(document.getElementById('perChart'));
+                let option = {
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b} : {c} ({d}%)'
+                    },
+                    series: [
+                        {
+                            name: '微表情评分',
+                            type: 'pie',
+                            radius: [20, 140],
+                            center: ['50%', '50%'],
+                            roseType: 'radius',
+                            itemStyle: {
+                                borderRadius: 5
+                            },
+                            label: {
+                                show: false
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true
+                                }
+                            },
+                            data: data
+                        }
+                    ]
+                };
+                perChart.setOption(option);
+            },
+            //KL散度
+            SetBarChart(time, data) {
+                var lineChart = echarts.init(document.getElementById('barChart'));
+                let option = {
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'shadow'
+                        }
+                    },
+                    grid: {
+                        top: '10px',
+                        left: '30px',
+                        right: '30px',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: [
+                        {
+                            type: 'category',
+                            data: time,
+                            axisTick: {
+                                alignWithLabel: true
+                            }
+                        }
+                    ],
+                    yAxis: [
+                        {
+                            type: 'value'
+                        }
+                    ],
+                    series: [
+                        {
+                            name: 'Direct',
+                            type: 'bar',
+                            barWidth: '60%',
+                            data: data
+                        }
+                    ]
+                };
+                lineChart.setOption(option);
+            },
+            //选择课程
+            couresSelect(obj) {
+                console.log(obj)
+            },
+            //开始
+            startVideo() {
+                // var videoElement = document.getElementById("videoModel");
+                var videoElement = document.getElementById("videoElement");
+                this.socket = new WebSocket('ws://localhost:8765');
+                if (navigator.mediaDevices.getUserMedia) {
+                    this.btnFlag = !this.btnFlag;
+                    var _this = this;
+                    navigator.mediaDevices.getUserMedia(this.constraints) // 请求视频流
+                        .then(function (stream) {
+                            // this.videoUrl = stream;
+                            videoElement.srcObject = stream;
+                            // _this.stream = stream;
+                            var mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm', });
+                            mediaRecorder.ondataavailable = function (event) {
+                                if (_this.socket.readyState === WebSocket.OPEN) {
+                                    _this.socket.send(event.data);
+                                }
+                            };
+                            mediaRecorder.start(100);
+                            _this.onmessageVideo();
+                        })
+                    // .catch(function (err) {
+                    //     // this.$message.error('获取摄像头错误')
+                    //     _this.$message({
+                    //         type: 'error',
+                    //         message: '获取摄像头错误!'
+                    //     });
+                    // });
+                } else {
+                    this.$message({
+                        type: 'error',
+                        message: '您的浏览器不支持getUserMedia!'
+                    });
+                }
+                this.socktesError();
+            },
+            //接收后端二进制视频
+            onmessageVideo() {
+                this.socket.onmessage = function (event) {
+                    console.log(event.data)
+                   //更新数据
+
+                };
+
+            },
+            //websocket发送视频
+            startSendingVideo() {
+                var mediaRecorder = new MediaRecorder(this.stream, { mimeType: 'video/webm' });
+                mediaRecorder.ondataavailable = function (event) {
+                    if (this.socket.readyState === WebSocket.OPEN) {
+                        this.socket.send(event.data);
+                    }
+                };
+                mediaRecorder.start();
+                this.onmessageVideo();
+                this.socktesError();
+            },
+            socktesError() {
+                this.socket.onerror = function (error) {
+                    console.log("Error:", error);
+                };
+            },
+            //结束
+            stopVideo() {
+                //结束
+                this.socket.close(1000, '客户端主动断开');
+                var videoElement = document.getElementById("videoElement")
+                var stream = videoElement.srcObject;
+                var tarcks = stream.getTracks();
+                tarcks.forEach(track => {
+                    track.stop()
+                })
+                this.videoUrl = null;
+                //断开websocke
+                this.btnFlag = !this.btnFlag
+                this.videoUrl.srcObject = null
+                //提示是否将分析数据发送至邮箱
+                this.$confirm('是否将本次数据发送至邮箱?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    this.$message({
+                        type: 'success',
+                        message: '发送成功!'
+                    });
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消发送'
+                    });
+                });
+
+            },
+            //选择课程
+            courses() {
+                axios.get("/user/courseList").then(res => {
+                    if (res.data.code === 1) {
+                        this.options = res.data.data
+                    }
+                })
+                //获取当前老师的课程列表
+                this.dialogTableVisible = !this.dialogTableVisible
+            }
+
+        }
+    })
+</script>
+
+</html>

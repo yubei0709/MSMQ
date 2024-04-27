@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于微表情检测的课堂质量打分系统</title>
+</head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        background-image: url(./img/back.png);
+        background-position: no-repeat;
+        background-size: cover;
+    }
+</style>
+
+<body>
+    <div id="login">
+        <div style="left: 20px;top:10px;position: absolute;">
+            <img src="./img/logo.png" width="100">
+        </div>
+        <div style="display: flex;padding: 30px;justify-content: space-between;margin-top: 150px;">
+            <div style="display: flex;align-items: center;
+            justify-content: space-around;">
+                <div style="margin-left: 60px;">
+                    <img src="./img/loginimg.png" width="500">
+                </div>
+                <div style="text-align: center;margin-left: 40px;color: white;">
+                    <h1 style="line-height: 70px;">MSQS</h1>
+                    <h2>基于微表情检测的课堂质量打分</h2>
+                </div>
+            </div>
+            <div style="width: 350px;text-align: center;margin-right: 50px;background-color: white;
+            padding: 20px;border-radius: 10px;">
+                <h3 style="margin-bottom: 20px;">欢迎登录</h3>
+                <el-form :model="loginFrom" :rules="rules" ref="loginFrom" label-width="auto" class="demo-ruleForm">
+                    <el-form-item label="工号" prop="username">
+                        <el-input v-model="loginFrom.username"></el-input>
+                    </el-form-item>
+                    <el-form-item label="密码" prop="password">
+                        <el-input type="password" v-model="loginFrom.password"></el-input>
+                    </el-form-item>
+                </el-form>
+                <el-button style="width: 100%;" type="primary" @click="submitForm('loginFrom')">提交</el-button>
+                <div style="display: flex;align-items: center;
+                justify-content: space-between;margin-top: 10px;">
+                    <el-button type="text" @click="UsageIssues">使用问题</el-button>
+                    <!-- <el-button type="text" @click="ForgotPassword">忘记密码?</el-button> -->
+                </div>
+            </div>
+        </div>
+        <!-- 使用问题 -->
+        <el-dialog title="使用问题" :visible.sync="UsageIssuesFlag"
+         width="30%" :close-on-click-modal="false">
+            <span>测试</span>
+        </el-dialog>
+    </div>
+</body>
+<script src="./js/vue.js"></script>
+<script src="./element-ui/lib/index.js"></script>
+<link rel="stylesheet" href="./element-ui/lib/theme-chalk/index.css">
+<script src="./js/axios-0.18.0.js"></script>
+<script>
+
+    new Vue({
+        el: "#login",
+        mounted() {
+
+
+        },
+        data() {
+
+            return {
+                UsageIssuesFlag:false,
+                loginFrom: {
+                    username: '',
+                    password: '',
+                },
+                rules: {
+                    username: [
+                        { required: true, message: '请输入工号', trigger: 'blur' },
+                        { min: 6, max: 6, message: '请输入6位工号', trigger: 'blur' }
+                    ],
+                    password: [
+                        { required: true, message: '请输入密码', trigger: 'blur' },
+                        { min: 8, max: 20, message: '请输入8-20位密码', trigger: 'blur' }
+                    ],
+                }
+            }
+        },
+        methods: {
+            //登录
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.login()
+
+                    } else {
+                        this.$message.error('请填写表单')
+                        return false;
+                    }
+                });
+            },
+            login() {
+                //发送请求
+                axios.post("/user/login", this.loginFrom).then(res => {
+                    console.log(res.data.data)
+                    if (res.data.code === 1) {
+                        this.$message({
+                            message: '登录成功',
+                            type: 'success'
+                        });
+                        setTimeout(function (){
+                            localStorage.setItem("userInfo",JSON.stringify(res.data.data));
+                            window.location.href = "./page/home.html"
+                        },2000)
+                    }else {
+                        this.$message.error(res.data.msg)
+                    }
+                })
+            },
+            //使用问题
+            UsageIssues(){
+                //获取数据
+                this.UsageIssuesFlag=!this.UsageIssuesFlag
+            },
+            //忘记密码
+            ForgotPassword() {
+                this.$message({
+                    message: '忘记密码',
+                    type: 'success'
+                });
+            }
+
+        }
+    })
+</script>
+
+</html>
